@@ -1,0 +1,51 @@
+
+name: Build SongHub Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Configure live website
+        run: |
+          node -e "const fs=require('fs'); const p='capacitor.config.ts'; let s=fs.readFileSync(p,'utf8'); s=s.replace(/server:\s*\{[^}]*\},?/s,''); s=s.replace(/appName:\s*['\"][^'\"]*['\"]/, 'appName: \"songhub_downloadables\"'); fs.writeFileSync(p,s);"
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: songhub-downloadables-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
